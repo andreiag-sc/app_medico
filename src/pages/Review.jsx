@@ -1,70 +1,22 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Copy, Check } from "lucide-react";
 import { SAMPLE_ORIGINAL } from "../data/mocks";
+import anonymize from "../utils/anonymize";
 
 export default function Review({ original = SAMPLE_ORIGINAL, processed, onApprove, onEdit }) {
   const [copied, setCopied] = useState(false);
-  const sensitiveMap = {
-    "Maria Aparecida dos Santos": "[PACIENTE]",
-    "58 anos": "[IDADE]",
-    "CPF 123.456.789-00": "[CPF]",
-    "Rua das Flores, nº 245, bairro Jardim São Luiz, Campinas – SP": "[ENDEREÇO]",
-    "telefone (19) 99876-5432": "[TELEFONE]",
-    "Hospital Municipal Dr. Mário Gatti": "[INSTITUIÇÃO]",
-    "HG-2025-009874": "[MATRÍCULA]",
-    "Dra. Ana Paula Ribeiro": "[MÉDICA]",
-    "CRM-SP 123456": "[CRM]",
-  };
-
-  const sensitiveTerms = Object.keys(sensitiveMap);
-
-  function escapeRegex(str) {
-    return str.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
-  }
-
-  const regex = new RegExp(`(${sensitiveTerms.map(escapeRegex).join("|")})`, "g");
-
-  function renderWithHighlights(text) {
-    const parts = text.split(regex);
-    return parts.map((part, i) => {
-      if (sensitiveTerms.includes(part)) {
-        return (
-          <span key={i} className="bg-red-100 text-red-800 px-1 rounded-sm">
-            {part}
-            {" "}
-          </span>
-        );
-      }
-      return <span key={i}>{part}</span>;
-    });
+  // For this NER-style approach, we no longer highlight the original aggressively.
+  // The anonymized, structured output is authoritative and appears in the "Processado" column.
+  function renderOriginalPlain(text) {
+    return <div className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">{text}</div>;
   }
 
   function renderProcessedSection() {
-    // Build structured sections by replacing sensitive terms with tags (plain [TAG] markers)
-    const replace = (str) => str.replace(regex, (m) => `${sensitiveMap[m]}`);
+    // Process the entire original as a single block and display anonymized text preserving structure.
+    const result = processed && processed.text ? { text: processed.text, replacements: processed.replacements || [] } : anonymize(original || "");
 
-    // Extract relevant clauses from original for coherence (mocked parsing)
-    const lines = original.split("\n").map((l) => l.trim());
-    // Simple mapping to sections (these depend on the SAMPLE_ORIGINAL format)
-    const queixa = lines.find((l) => l.toLowerCase().startsWith("queixa principal")) || "";
-    const historia = lines.find((l) => l.toLowerCase().startsWith("história da moléstia atual") || l.toLowerCase().startsWith("historia da moléstia atual")) || "";
-    const exame = lines.find((l) => l.toLowerCase().startsWith("exame físico") || l.toLowerCase().startsWith("exame físico/oftalmológico")) || lines.find((l)=>l.toLowerCase().startsWith("exame físico/oftalmológico")) || "";
-    const conduta = lines.find((l) => l.toLowerCase().startsWith("conduta")) || "";
-
-    // Fallback: use portions of original when headers not matched
-    const fallbackQueixa = queixa || lines.slice(0,1).join(" ");
-    const fallbackHistoria = historia || lines.slice(1,3).join(" ");
-    const fallbackExame = exame || lines.slice(3,5).join(" ");
-    const fallbackConduta = conduta || lines.slice(5).join(" ");
-
-    const qText = replace(fallbackQueixa.replace(/^queixa principal:\s*/i, ""));
-    const hText = replace(fallbackHistoria.replace(/^hist(oría|oria) da moléstia atual:\s*/i, ""));
-    const eText = replace(fallbackExame.replace(/^exame físico(:|\/).*?/i, ""));
-    const cText = replace(fallbackConduta.replace(/^conduta:\s*/i, ""));
-
-    // Convert [TAG] markers into styled JSX (bold + light blue background)
-    function boldify(str) {
-      const parts = str.split(/(\[.*?\])/g).filter(Boolean);
+    function renderWithTagStyling(text) {
+      const parts = text.split(/(\[.*?\])/g).filter(Boolean);
       return parts.map((p, i) => {
         if (/^\[.*\]$/.test(p)) {
           return (
@@ -78,43 +30,52 @@ export default function Review({ original = SAMPLE_ORIGINAL, processed, onApprov
     }
 
     return (
-      <div className="space-y-4">
-        <div>
-          <h4 className="font-semibold">Queixa Principal</h4>
-          <p className="leading-relaxed text-sm text-slate-700">{boldify(qText)}</p>
-        </div>
-        <div>
-          <h4 className="font-semibold">Histórico da Moléstia Atual</h4>
-          <p className="leading-relaxed text-sm text-slate-700">{boldify(hText)}</p>
-        </div>
-        <div>
-          <h4 className="font-semibold">Exame Físico</h4>
-          <p className="leading-relaxed text-sm text-slate-700">{boldify(eText)}</p>
-        </div>
-        <div>
-          <h4 className="font-semibold">Conduta</h4>
-          <p className="leading-relaxed text-sm text-slate-700">{boldify(cText)}</p>
-        </div>
+      <div>
+        <pre className="whitespace-pre-wrap text-sm text-slate-700 leading-relaxed">{renderWithTagStyling(result.text)}</pre>
       </div>
     );
   }
 
   function buildProcessedPlainText() {
-    // similar to renderProcessedSection but returns plain text with tags
-    const replace = (str) => str.replace(regex, (m) => `${sensitiveMap[m]}`);
+    // prefer processed prop if available
+    if (processed && processed.text) return processed.text;
+    // otherwise use shared anonymize util to produce plain processed text
     const lines = original.split("\n").map((l) => l.trim());
-    const queixa = lines.find((l) => l.toLowerCase().startsWith("queixa principal")) || "";
-    const historia = lines.find((l) => l.toLowerCase().startsWith("história da moléstia atual") || l.toLowerCase().startsWith("historia da moléstia atual")) || "";
-    const exame = lines.find((l) => l.toLowerCase().startsWith("exame físico") || l.toLowerCase().startsWith("exame físico/oftalmológico")) || lines.find((l)=>l.toLowerCase().startsWith("exame físico/oftalmológico")) || "";
-    const conduta = lines.find((l) => l.toLowerCase().startsWith("conduta")) || "";
-    const fallbackQueixa = queixa || lines.slice(0,1).join(" ");
-    const fallbackHistoria = historia || lines.slice(1,3).join(" ");
-    const fallbackExame = exame || lines.slice(3,5).join(" ");
+
+    function findSectionByHeadersLocal(headerRegexes) {
+      for (let i = 0; i < lines.length; i++) {
+        for (const hr of headerRegexes) {
+          const regex = new RegExp(hr, "i");
+          if (regex.test(lines[i])) {
+            const collected = [];
+            const after = lines[i].split(/[:\-]\s*/).slice(1).join(": ").trim();
+            if (after) collected.push(after);
+            for (let j = i + 1; j < lines.length; j++) {
+              if (!lines[j]) break;
+              if (/^(queixa principal|hist[oó]ria da mol[eé]stia atual|exame físico|ao exame|conduta)[:\s]/i.test(lines[j])) break;
+              collected.push(lines[j]);
+            }
+            return collected.join(" ").trim();
+          }
+        }
+      }
+      return "";
+    }
+
+    const queixa = findSectionByHeadersLocal(["^queixa principal"]) || "";
+    const historia = findSectionByHeadersLocal(["^hist[oó]ria da mol[eé]stia atual", "^historia da molestia atual"]) || "";
+    const exame = findSectionByHeadersLocal(["^exame físico", "^exame físico\\/oftalmológico", "^ao exame"]) || "";
+    const conduta = findSectionByHeadersLocal(["^conduta"]) || "";
+
+    const fallbackQueixa = queixa || lines.slice(0, 1).join(" ");
+    const fallbackHistoria = historia || lines.slice(1, 3).join(" ");
+    const fallbackExame = exame || lines.slice(3, 5).join(" ");
     const fallbackConduta = conduta || lines.slice(5).join(" ");
-    const qText = replace(fallbackQueixa.replace(/^queixa principal:\s*/i, ""));
-    const hText = replace(fallbackHistoria.replace(/^hist(oría|oria) da moléstia atual:\s*/i, ""));
-    const eText = replace(fallbackExame.replace(/^exame físico(:|\/).*?/i, ""));
-    const cText = replace(fallbackConduta.replace(/^conduta:\s*/i, ""));
+
+    const qText = anonymize(fallbackQueixa.replace(/^queixa principal:\s*/i, "")).text;
+    const hText = anonymize(fallbackHistoria.replace(/^hist(oría|oria) da moléstia atual:\s*/i, "")).text;
+    const eText = anonymize((exame || fallbackExame).replace(/^exame físico(:|\/).*?/i, "")).text;
+    const cText = anonymize(fallbackConduta.replace(/^conduta:\s*/i, "")).text;
     return [
       "Queixa Principal: " + qText,
       "Histórico da Moléstia Atual: " + hText,
@@ -122,6 +83,11 @@ export default function Review({ original = SAMPLE_ORIGINAL, processed, onApprov
       "Conduta: " + cText,
     ].join("\n\n");
   }
+
+  // expose replacements for parent via effect if processed present
+  useEffect(() => {
+    // no-op here; parent will manage audit data via App's anonymization
+  }, []);
 
   async function handleCopy() {
     const text = buildProcessedPlainText();
@@ -141,7 +107,7 @@ export default function Review({ original = SAMPLE_ORIGINAL, processed, onApprov
         <div className="bg-gray-50 border p-4 rounded-lg overflow-y-auto h-[450px] relative">
           <h3 className="font-medium mb-2">Original</h3>
           <div className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">
-            {renderWithHighlights(original)}
+            {renderOriginalPlain(original)}
           </div>
         </div>
 
@@ -157,6 +123,7 @@ export default function Review({ original = SAMPLE_ORIGINAL, processed, onApprov
           </button>
           <div className="text-sm text-slate-700">
             {processed ? (
+              // prefer processed prop if provided by App (already anonymized)
               renderProcessedSection()
             ) : (
               <p className="text-slate-400">Nenhum resultado disponível.</p>
@@ -168,8 +135,11 @@ export default function Review({ original = SAMPLE_ORIGINAL, processed, onApprov
       <div className="mt-4 flex gap-3">
         <button
           onClick={() => {
-            const plain = buildProcessedPlainText();
-            if (onApprove) onApprove(plain);
+            if (onApprove) {
+              // pass processed object if available, otherwise produce anonymized text
+              if (processed && processed.text) onApprove({ text: processed.text, replacements: processed.replacements || processed.entities || [] });
+              else onApprove({ text: buildProcessedPlainText(), replacements: [] });
+            }
           }}
           className="bg-sky-800 hover:bg-sky-900 text-white px-4 py-2 rounded-md"
         >

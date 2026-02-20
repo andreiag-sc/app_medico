@@ -1,11 +1,12 @@
 import React from "react";
 import { FilePlus, ClipboardList, Archive, Home } from "lucide-react";
 
-export default function Sidebar({ current, setCurrent }) {
+export default function Sidebar({ current, setCurrent, onNavigate }) {
   const items = [
     { key: "overview", label: "Visão Geral", icon: Home },
     { key: "new", label: "Novo Caso", icon: FilePlus },
     { key: "history", label: "Histórico", icon: Archive },
+    { key: "audit", label: "Auditoria", icon: ClipboardList },
   ];
 
   return (
@@ -22,9 +23,12 @@ export default function Sidebar({ current, setCurrent }) {
           return (
             <button
               key={it.key}
-              onClick={() => setCurrent(it.key)}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm ${
-                active ? "bg-sky-100 text-sky-700" : "text-slate-700 hover:bg-gray-50"
+              onClick={() => {
+                if (onNavigate) onNavigate(it.key);
+                else setCurrent(it.key);
+              }}
+              className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm ${
+                active ? "bg-sky-100 text-sky-800 shadow-md" : "text-slate-700 hover:bg-gray-50"
               }`}
             >
               <Icon className="w-5 h-5" />

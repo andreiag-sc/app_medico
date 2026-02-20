@@ -1,10 +1,21 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Spinner from "../components/Spinner";
 
 export default function NewCase({ onProcess, initialText }) {
-  const [text, setText] = useState(initialText || "");
+  const [text, setText] = useState("");
   const [focus, setFocus] = useState("Educação/Discussão");
   const [loading, setLoading] = useState(false);
+
+  // Clear textarea on mount and whenever initialText signals a fresh start
+  useEffect(() => {
+    setText(initialText || "");
+  }, [initialText]);
+
+  useEffect(() => {
+    // ensure cleared on mount
+    setText(initialText || "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function handleProcess() {
     setLoading(true);

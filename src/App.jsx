@@ -4,7 +4,9 @@ import Overview from "./pages/Overview";
 import NewCase from "./pages/NewCase";
 import Review from "./pages/Review";
 import History from "./pages/History";
+import Audit from "./pages/Audit";
 import { MOCK_HISTORY } from "./data/mocks";
+import anonymize from "./utils/anonymize";
 
 export default function App() {
   const [current, setCurrent] = useState("overview");
@@ -29,12 +31,28 @@ export default function App() {
     }
   }, [history]);
 
+  const [lastAudit, setLastAudit] = useState(null);
+
   function handleProcess({ text, focus }) {
     // Simula processamento e navega para revisão
-    setCurrentText(text || "");
+    const t = text || "";
+    setCurrentText(t);
     setCurrentFocus(focus);
-    setProcessed({ time: Date.now() });
+    // anonymize here so App can persist audit info
+    const result = anonymize(t);
+    setProcessed({ time: Date.now(), text: result.text, replacements: result.replacements });
+    // also keep last audit for Audit page
+    setLastAudit({ replacements: result.replacements });
     setCurrent("review");
+  }
+ 
+  function handleNavigate(key) {
+    if (key === "new") {
+      // limpar texto atual ao iniciar novo caso
+      setCurrentText("");
+      setProcessed(null);
+    }
+    setCurrent(key);
   }
 
   function handleApprove(processedText) {
@@ -52,17 +70,32 @@ export default function App() {
       return t.slice(0, 200);
     }
 
-    const snippet =
-      extractFirstSentence(currentText) || extractFirstSentence(processedText) || "Relato processado";
+    let processedStr = "";
+    let processedEntities = [];
+    if (typeof processedText === "string") {
+      processedStr = processedText;
+    } else if (processedText && processedText.text) {
+      processedStr = processedText.text;
+      processedEntities = processedText.replacements || processedText.entities || [];
+    } else if (processed && processed.text) {
+      processedStr = processed.text;
+      processedEntities = processed.replacements || processed.entities || [];
+    }
+
+    const snippet = extractFirstSentence(currentText) || extractFirstSentence(processedStr) || "Relato processado";
     const entry = {
       id: Date.now(),
       date: new Date().toISOString().slice(0, 10),
       focus: currentFocus,
       summary: snippet,
       original: currentText,
-      processed: processedText || ""
+      processed: processedStr,
+      replacements: processedEntities
     };
     setHistory((prev) => [entry, ...prev]);
+    // limpar estado atual após salvar
+    setCurrentText("");
+    setProcessed(null);
     setCurrent("overview");
   }
 
@@ -87,7 +120,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      <Sidebar current={current} setCurrent={setCurrent} />
+      <Sidebar current={current} setCurrent={setCurrent} onNavigate={handleNavigate} />
       <main className="flex-1">
         <header className="bg-white border-b p-4">
           <div className="max-w-6xl mx-auto flex justify-between items-center">
@@ -97,18 +130,21 @@ export default function App() {
         </header>
 
         <div className="max-w-6xl mx-auto">
-          {current === "overview" && <Overview />}
-          {current === "new" && <NewCase onProcess={handleProcess} initialText={currentText} />}
-          {current === "review" && (
-            <Review
-              original={currentText}
-              processed={processed}
-              onApprove={handleApprove}
-              onEdit={handleEdit}
-              onDiscard={handleDiscard}
-            />
-          )}
-          {current === "history" && <History history={history} onClear={clearHistory} />}
+          <div key={current} className="fade-in">
+            {current === "overview" && <Overview />}
+            {current === "new" && <NewCase onProcess={handleProcess} initialText={currentText} />}
+            {current === "review" && (
+              <Review
+                original={currentText}
+                processed={processed}
+                onApprove={handleApprove}
+                onEdit={handleEdit}
+                onDiscard={handleDiscard}
+              />
+            )}
+            {current === "history" && <History history={history} onClear={clearHistory} />}
+            {current === "audit" && <Audit lastAudit={lastAudit} />}
+          </div>
         </div>
       </main>
     </div>
