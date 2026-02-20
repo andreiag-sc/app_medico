@@ -45,6 +45,7 @@ Falha 5: Limitações da Utilidade Prática: A IA listou o Histórico, mas não 
 5. Como Rodar o Projeto Localmente
 Instale as dependências: npm install
 Rode o servidor de desenvolvimento: npm run dev
-Acesse no navegador no link:)
+
+Acesse no navegador no link:
 
 
