@@ -17,13 +17,15 @@ export default function NewCase({ onProcess, initialText }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function handleProcess() {
+  async function handleProcess() {
     setLoading(true);
-    const delay = 2200 + Math.floor(Math.random() * 800);
-    setTimeout(() => {
+    try {
+      await onProcess({ text, focus });
+    } catch (err) {
+      // erro já exibido em App.handleProcess
+    } finally {
       setLoading(false);
-      onProcess({ text, focus });
-    }, delay);
+    }
   }
 
   return (
@@ -53,7 +55,7 @@ export default function NewCase({ onProcess, initialText }) {
             className="bg-sky-600 text-white px-4 py-2 rounded-md hover:bg-sky-700"
             disabled={loading}
           >
-            {loading ? <span className="flex items-center gap-2"><Spinner />Processando...</span> : "Processar Texto"}
+            {loading ? <span className="flex items-center gap-2"><Spinner />A IA está processando...</span> : "Processar Texto"}
           </button>
         </div>
       </div>

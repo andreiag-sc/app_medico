@@ -6,7 +6,8 @@ import Review from "./pages/Review";
 import History from "./pages/History";
 import Audit from "./pages/Audit";
 import { MOCK_HISTORY } from "./data/mocks";
-import anonymize from "./utils/anonymize";
+
+const API_BASE = "http://127.0.0.1:8000";
 
 export default function App() {
   const [current, setCurrent] = useState("overview");
@@ -33,17 +34,28 @@ export default function App() {
 
   const [lastAudit, setLastAudit] = useState(null);
 
-  function handleProcess({ text, focus }) {
-    // Simula processamento e navega para revisão
+  async function handleProcess({ text, focus }) {
     const t = text || "";
     setCurrentText(t);
     setCurrentFocus(focus);
-    // anonymize here so App can persist audit info
-    const result = anonymize(t);
-    setProcessed({ time: Date.now(), text: result.text, replacements: result.replacements });
-    // also keep last audit for Audit page
-    setLastAudit({ replacements: result.replacements });
-    setCurrent("review");
+    try {
+      const res = await fetch(`${API_BASE}/api/processar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ texto: t }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `Erro ${res.status}`);
+      }
+      const data = await res.json();
+      setProcessed(data);
+      setLastAudit(data);
+      setCurrent("review");
+    } catch (err) {
+      alert(err.message || "Erro ao processar. Verifique se o backend está rodando na porta 8000.");
+      throw err;
+    }
   }
  
   function handleNavigate(key) {
@@ -74,9 +86,27 @@ export default function App() {
     let processedEntities = [];
     if (typeof processedText === "string") {
       processedStr = processedText;
+    } else if (processedText && processedText.relato_anonimizado_completo) {
+      processedStr = processedText.relato_anonimizado_completo;
+      const ent = processedText.entidades_removidas ?? processed?.entidades_removidas ?? [];
+      processedEntities = Array.isArray(ent)
+        ? ent.map((e) => ({
+            original: e.valor_original ?? e.original ?? "",
+            tag: e.tipo ?? e.tag ?? "",
+          }))
+        : [];
     } else if (processedText && processedText.text) {
       processedStr = processedText.text;
       processedEntities = processedText.replacements || processedText.entities || [];
+    } else if (processed && processed.relato_anonimizado_completo) {
+      processedStr = processed.relato_anonimizado_completo;
+      const ent = processed.entidades_removidas ?? [];
+      processedEntities = Array.isArray(ent)
+        ? ent.map((e) => ({
+            original: e.valor_original ?? e.original ?? "",
+            tag: e.tipo ?? e.tag ?? "",
+          }))
+        : [];
     } else if (processed && processed.text) {
       processedStr = processed.text;
       processedEntities = processed.replacements || processed.entities || [];
@@ -143,7 +173,7 @@ export default function App() {
               />
             )}
             {current === "history" && <History history={history} onClear={clearHistory} />}
-            {current === "audit" && <Audit lastAudit={lastAudit} />}
+            {current === "audit" && <Audit processed={processed || lastAudit} />}
           </div>
         </div>
       </main>

@@ -1,72 +1,72 @@
-## Protótipo: Plataforma de Anonimização e Estruturação de Dados Médicos
-Este repositório contém um protótipo de interface em React (Vite) com Tailwind CSS e Lucide React para ícones.
+# Plataforma de Anonimização e Estruturação de Dados Médicos
 
-Observações importantes:
+Este repositório contém uma aplicação Full-Stack (React e FastAPI) que automatiza a anonimização e estruturação de prontuários médicos utilizando Engenharia de LLM avançada, em total conformidade com as diretrizes da LGPD (Lei Geral de Proteção de Dados).
 
-É apenas um mockup; NÃO há integração com modelos de IA ou backend.
+## 1. Descrição do Problema e da Solução Proposta
 
-O processamento é simulado no front-end com estados e dados estáticos.
+**O Problema:** A discussão de casos clínicos é fundamental para o ensino médico e para a inteligência de mercado na saúde (Real-World Evidence). No entanto, limpar prontuários manualmente para remover dados sensíveis é um processo lento, caro e sujeito a falhas. O uso de regras fixas de programação (Expressões Regulares - Regex) também falha, pois não compreende o contexto das frases, gerando riscos éticos e legais.
 
-1. Descrição do Problema e da Solução Proposta
-O Problema: A discussão de casos clínicos reais é fundamental para o ensino médico e para a inteligência de mercado na área da saúde. No entanto, os prontuários contêm informações sensíveis e identificáveis. Fazer a limpeza manual é um processo lento e sujeito a falhas humanas, gerando riscos éticos e legais.
+**A Solução:** Este projeto integra um LLM que atua como um Agente de Extração de Entidades. A IA lê o texto bruto e atua em duas frentes:
+1. **Anonimização:** Localiza os dados sensíveis por contexto semântico (nomes, locais, datas) e oculta essas informações usando tags seguras (ex: `[PACIENTE]`, `[LOCALIZACAO]`).
+2. **Estruturação:** Fatie o texto bruto e o devolve organizado em seções clínicas padronizadas (Queixa Principal, Exame Físico, Conduta), sem alterar o sentido original da história.
 
-A Solução: Este projeto é o protótipo (front-end) de uma aplicação que automatiza a anonimização e estruturação de textos médicos. O usuário insere um relato clínico bruto, e o sistema oculta os dados sensíveis, retornando o texto organizado em seções padrão (Queixa Principal, Histórico da Moléstia Atual, Conduta).
+## 2. Arquitetura do Sistema e Engenharia de LLM
 
-Integração Futura (IA Real): No futuro, o back-end será conectado a um modelo de linguagem (LLM) atuando como um Agente de Extração de Entidades. A IA lerá o texto, localizará os dados sensíveis por contexto e reescreverá o texto formatado, garantindo que o sentido clínico da história não seja alterado.
+A aplicação foi dividida em dois microsserviços para separar a interface visual da regra de negócio e proteger a chave de API:
+- **Frontend:** Construído em React (Vite) com Tailwind CSS, oferecendo uma interface de validação lado a lado (texto original vs. processado) e auditoria visual.
+- **Backend:** Construído em Python usando FastAPI.
 
-2. Escolhas de Design e Regras de Negócio
-Arquitetura (Stack): Optei por usar React com Vite para o front-end (visual) e Tailwind CSS para a estilização. É uma estrutura rápida, moderna e ideal para prototipagem.
+**Fluxo de Dados:**
+Input do Usuário (React) ➔ Backend (FastAPI) ➔ System Prompt + Instruções ➔ OpenAI API (GPT-4o-mini) ➔ Extração de Dados (JSON) ➔ Ferramenta Python (Calcula risco LGPD) ➔ Resposta na Tela.
 
-Interface de Comparação (Split Screen): Na tela de "Revisão", escolhi usar uma visualização lado a lado. Na medicina, a validação humana é inegociável. Mostrar o texto original com os dados sensíveis em vermelho ao lado do resultado processado permite ao médico revisar com segurança.
+**Decisão de Framework (SDK Direto vs. LangChain):**
+Optei por fazer chamadas diretas usando a biblioteca oficial da OpenAI (SDK) em vez de usar frameworks pesados como LangChain ou LangGraph. A anonimização é uma tarefa determinística de turno único (*single-turn*). Adicionar o LangChain traria complexidade e latência desnecessárias para este caso de uso específico. O código se mantém mais leve, rápido e fácil de debugar.
 
-Uso de Tags Neutras: Em vez de simplesmente apagar os dados, o sistema substitui informações sensíveis por marcadores em destaque (azul e negrito) como [PACIENTE], [IDADE] ou [HOSPITAL]. Isso preserva o sentido da frase e cria um padrão perfeito para futuras análises de inteligência de mercado via Processamento de Linguagem Natural (NLP).
+## 3. Decisões de LLM e Configurações de Parâmetros
 
-Paleta de Cores: Tons limpos de azul, branco e cinza, que transmitem a seriedade e limpeza exigidas em softwares de saúde.
+- **Modelo Escolhido (gpt-4o-mini):** A tarefa exige "Structured Outputs" rigorosos (retornar exclusivamente um formato JSON perfeito) e alta precisão clínica. O gpt-4o-mini (API paga) entrega precisão de ponta com baixo custo e altíssima velocidade. *Trade-off:* Um modelo local (como Llama 3) traria mais privacidade por rodar no próprio hospital, mas exigiria infraestrutura de servidores caros (GPUs) e maior esforço de engenharia para forçar a saída no formato JSON sem erros ou perdas em textos longos.
+- **Parâmetros (Temperatura 0.0 e Top-P 0.1):** Na área da saúde, não queremos criatividade do modelo. Configurar a temperatura em zero e o Top-p em 0.1 reduz o vocabulário da IA para as palavras mais prováveis e seguras. Isso força a IA a ser factual e determinística, impedindo que ela invente sintomas clínicos (alucinação) ou altere a gravidade do quadro do paciente.
 
-3. O que Funcionou com o Agente (Cursor)
-Estruturação Base: O agente foi excelente para criar a "espinha dorsal" do projeto. Com o primeiro comando, ele gerou perfeitamente a navegação lateral (Sidebar) e a divisão em três rotas principais (Visão Geral, Novo Caso e Histórico).
+## 4. Estratégia do System Prompt
 
-Configuração de Bibliotecas: Ele integrou o Tailwind CSS e a biblioteca de ícones Lucide React sem nenhum erro de configuração, entregando componentes visualmente limpos logo de início.
+O prompt (`system_prompt.txt`) foi desenhado para máximo controle sobre a saída do modelo:
 
-4. O que Não Funcionou e Minhas Intervenções (O Processo)
-Apesar da boa estrutura inicial, atuei ativamente revisando o código gerado, pois a IA cometeu várias falhas graves de lógica, UI (Interface) e UX (Experiência do Usuário), exigindo iterações constantes:
+- **Persona:** O LLM é instruído a atuar como um "Especialista Sênior em Privacidade de Dados Médicos e NLP Clínico".
+- **XML Tags e Few-Shot:** O prompt é estruturado em blocos definidos por tags, separando claramente as diretrizes de anonimização do formato de saída exigido, e fornece um exemplo exato da estrutura JSON desejada.
+- **Heurísticas Restritivas:** Exige a troca exata de dados por marcadores específicos, garantindo que dados vitais (como idade genérica e sinais vitais) sejam preservados e não confundidos com informações de identificação pessoal.
+- **Regra de Integridade do Relato:** Contém uma instrução explícita em CAIXA ALTA proibindo o modelo de abreviar o texto ou usar reticências (ex: `...texto aqui`), garantindo que o relato completo seja sempre retornado na íntegra.
 
-Falha 1: Alucinação de Contexto e Dados Sensíveis: Na primeira versão da tela de Revisão, a IA mostrou um texto original de oftalmologia (retinopatia diabética) e um resultado de cardiologia. Além disso, falhou em destacar os dados óbvios (nome, CPF, CRM). Correção: Intervim com um prompt rigoroso exigindo coerência total entre os dois lados e listando exatamente o que deveria ser ocultado.
+## 5. Ferramenta Integrada (Tools): Termômetro de Risco LGPD
 
-Falha 2: Perda de Dados (Estado do React): O agente não conectou o fluxo de dados. Ao aprovar um caso e ir para a aba Histórico, os dados sumiam (o React destruía o estado). Correção: Exigi a implementação de salvamento correto (state lifting / local storage) para que os casos aprovados realmente alimentassem a tabela de Histórico.
+Para demonstrar o uso de *Tools* (Ferramentas), o sistema não delega matemática para a IA. Em vez disso, foi criada uma ferramenta Python local (`lgpd_tool.py`). 
 
-Falha 3: Simetria e Design (UI): A IA colocou a barra de rolagem (scroll) apenas na caixa de texto original, quebrando o layout. Além disso, as tags [PACIENTE] não tinham contraste. Correção: Forcei a mesma altura (max-h) e rolagem (overflow-y-auto) em ambas as caixas e adicionei fundo azul nas tags anonimizadas. Os botões também vieram com cores genéricas (verde/amarelo) e foram ajustados para o padrão do sistema.
+**Por que usar essa ferramenta?**
+Modelos de linguagem são excelentes com texto, mas não são ideais para lógica determinística e matemática. A IA apenas identifica e remove as entidades. O código Python conta essas entidades removidas e aplica uma régua de classificação de risco. Delegar essa regra de negócio para o Python garante 100% de estabilidade.
 
-Falha 4: Sem Rota de Fuga (UX): A interface prendia o usuário na tela de revisão, sem opção de cancelar. Correção: Pedi a inclusão do botão "Descartar Caso" para limpar o processo e voltar ao início sem salvar.
+A lógica é fundamentada no conceito de *linkability* da LGPD: quanto mais dados identificáveis um documento contiver, maior a probabilidade de que um terceiro consiga cruzar as informações e reidentificar o paciente.
 
-Falha 5: Limitações da Utilidade Prática: A IA listou o Histórico, mas não permitia clicar para ler o texto completo. Mais grave ainda: não havia como o aluno ou médico copiar o texto anonimizado. Correção: Instruí a criação de um Modal para leitura completa no Histórico e a inclusão de um botão interativo de "Copiar" (com feedback visual de sucesso) na caixa do texto processado. Também adicionei um botão de "Limpar Histórico".
+| Entidades Encontradas | Nível de Risco   | Significado |
+|-----------------------|------------------|-------------|
+| 0                     | **Risco Baixo** | Nenhum dado sensível identificável foi encontrado. O prontuário é considerado seguro para compartilhamento. |
+| 1 a 3                 | **Risco Moderado** | Alguns dados sensíveis foram detectados e removidos. O documento requer revisão antes do uso. |
+| 4 ou mais             | **Alto Risco** | Muitos dados sensíveis foram detectados. O risco de reidentificação do paciente é elevado. Exige atenção redobrada da equipe de compliance. |
 
-Falha 6: Problema de Infraestrutura (Erro 126 no Deploy): O agente enviou incorretamente a pasta node_modules para o GitHub, o que causou um erro fatal de permissões no Vercel durante o deploy. Correção: Atuei no terminal executando comandos Git para limpar o cache (git rm -r --cached node_modules) e forcei a criação correta de um arquivo .gitignore, liberando o servidor para publicar o site.
+O resultado é exibido na interface como um card visual colorido tanto na tela de Revisão quanto na aba de Auditoria, facilitando a tomada de decisão da governança hospitalar e de Comitês de Ética Médica.
 
-Falha 7: Limpeza de Estado do React (Bug do Texto Preso): Mesmo após descartar ou salvar um caso, o texto antigo permanecia preso na tela de "Novo Caso". A IA falhou repetidas vezes em limpar o state do componente filho. Correção: Fui obrigada a forçar uma alteração arquitetural via prompt, exigindo um useEffect para zerar a variável controlada sempre que o componente fosse montado.
+## 6. Histórico de Desenvolvimento: O que funcionou e o que não funcionou
 
-Falha 8: Regex Frágil vs. Ontologia Médica (Vazamento de PII): O sistema inicial deixou vazar números de Cartão SUS (15 dígitos), CRMs e endereços completos (como nomes de bairros e escolas). A IA tentou usar um marcador vermelho visual que não apagava o dado. Correção: Elevei o nível do prompt implementando heurísticas baseadas em âncoras semânticas (NLP Clínico). Ensinei a IA a procurar o contexto ("mora em", "escola") em vez de palavras exatas, garantindo a extração de [LOCALIZACAO] e [DOCUMENTO] de forma segura.
+- **O que não funcionou no início:** Na primeira versão, o uso de substituição de texto simples no frontend (Regex) deixava vazar números de identificação e endereços completos. Ao integrar a IA inicialmente, ela era "preguiçosa" e começava a deletar parágrafos inteiros ou usar reticências para resumir a história.
+- **A Solução:** O uso da compreensão ontológica e semântica do LLM (NER) substituiu a fragilidade do Regex. Para a "preguiça", apliquei a ordem restritiva em maiúsculas no prompt proibindo abreviações.
+- **O grande acerto:** O uso do parâmetro **`response_format={ "type": "json_object" }`** foi fundamental. Sem ele, a IA respondia com textos informais, o quebrava o front-end em React. Forçar o JSON garantiu a integração perfeita das telas.
+- **Mudança de Escopo Estratégica:** A ferramenta de busca de CID-10 foi substituída pelo Termômetro de Risco LGPD. A decisão foi motivada por confiabilidade técnica (a busca de CID dependia de `tool_calls` da OpenAI, que ocasionalmente retornava `content = null` e causava falhas silenciosas na interface) e por relevância prática hospitalar.
 
-Falha 9: Perda de Dados Clínicos Críticos (O Bug de Estruturação): Na reta final, ao tentar "recortar" o texto para encaixar em seções bonitas (Queixa, Exame, Conduta), a IA começou a deletar parágrafos inteiros do relato do paciente. Correção: Tive que aplicar uma ordem restritiva de emergência: proibi a IA de particionar o texto. Mudei a regra para processamento em bloco único, garantindo 100% de retenção da informação clínica, priorizando a segurança e a integridade do dado sobre a formatação.
+## 7. Como Executar o Projeto Localmente
 
-5. Como Rodar o Projeto Localmente
-Link Oficial da Aplicação em Produção:
-https://app-medico-topaz.vercel.app
+É necessário executar os dois ambientes em paralelo (dois terminais separados).
+Certifique-se de configurar o arquivo `backend/.env` com a sua chave `OPENAI_API_KEY`.
 
-Rodando localmente:
-
-Instale as dependências: npm install
-
-Rode o servidor de desenvolvimento: npm run dev
-
-Acesse no navegador o link gerado no terminal (geralmente http://localhost:5173).
-
-6. Garantia de Qualidade e Auditoria
-Este protótipo inclui mecanismos básicos de garantia de qualidade:
-
-Testes automatizados: Há um conjunto simples de testes unitários (Vitest) que validam a função principal de anonimização. Rode com: npm run test
-
-Trilha de auditoria: A aba "Auditoria" mostra, para o último caso processado, quais trechos do texto foram detectados e substituídos (ex.: "CRM-SP 123456" -> "[DOCUMENTO]"). Isso fornece transparência durante a fase de revisão.
-
-Observação: Para produção real, recomenda-se pipelines de anonimização robustas integradas a modelos avançados de NER (Named Entity Recognition), com auditoria e revisão humana, além de controles estritos de acesso e registro.
-
+**Iniciando o Backend (Python/FastAPI):**
+```bash
+cd backend
+pip install -r requirements.txt
+python -m uvicorn main:app --reload
